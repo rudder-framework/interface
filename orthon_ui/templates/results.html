@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orthon — {job_id}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0a; color: #e0e0e0;
+    min-height: 100vh; padding: 2rem;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; font-weight: 300; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+  h1 span { color: #6ea8fe; }
+  .file-info { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #333; margin-bottom: 1.5rem; }
+  .tab {
+    padding: 0.6rem 1.5rem; cursor: pointer; color: #666;
+    border-bottom: 2px solid transparent; font-weight: 500; font-size: 0.9rem;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab:hover { color: #aaa; }
+  .tab.active { color: #6ea8fe; border-bottom-color: #6ea8fe; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Stages */
+  .stages { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem; }
+  .stage {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1rem; border-radius: 8px;
+    background: #141414; border: 1px solid #222;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .stage:hover { border-color: #444; }
+  .stage.selected { border-color: #6ea8fe; background: rgba(110,168,254,0.05); }
+  .stage.running { border-color: #f0ad4e; }
+  .stage.done { border-color: #5cb85c; }
+  .stage.failed { border-color: #d9534f; }
+  .stage input[type="checkbox"] { accent-color: #6ea8fe; width: 16px; height: 16px; }
+  .stage-name { font-weight: 500; flex: 1; }
+  .stage-desc { font-size: 0.8rem; color: #666; }
+  .stage-status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: #1a1a1a; color: #555; }
+  .stage.running .stage-status { background: #3a2a10; color: #f0ad4e; }
+  .stage.done .stage-status { background: #1a2e1a; color: #5cb85c; }
+  .stage.failed .stage-status { background: #2e1a1a; color: #d9534f; }
+
+  .actions { display: flex; gap: 1rem; margin-bottom: 2rem; }
+  button {
+    padding: 0.6rem 1.5rem; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-run { background: #6ea8fe; color: #0a0a0a; }
+  .btn-run:hover { background: #93c0ff; }
+  .btn-run:disabled { opacity: 0.3; cursor: default; }
+  .btn-all { background: #222; color: #aaa; }
+  .btn-all:hover { background: #333; }
+
+  .log { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.8rem; color: #888; min-height: 80px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+
+  /* Output files */
+  .output-files { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.5rem; }
+  .output-file {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0.75rem; background: #141414; border: 1px solid #222;
+    border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: border-color 0.2s;
+  }
+  .output-file:hover { border-color: #6ea8fe; }
+  .output-file.active { border-color: #6ea8fe; background: rgba(110,168,254,0.05); }
+  .output-file .name { font-family: monospace; color: #ccc; }
+  .output-file .meta { color: #555; font-size: 0.75rem; }
+
+  .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .card { background: #141414; border: 1px solid #222; border-radius: 8px; padding: 0.75rem; text-align: center; }
+  .card .value { font-size: 1.4rem; font-weight: 600; color: #6ea8fe; }
+  .card .label { font-size: 0.75rem; color: #666; margin-top: 0.25rem; }
+
+  /* Shared table styles */
+  .tbl-wrap { overflow-x: auto; border: 1px solid #222; border-radius: 8px; max-height: 400px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: monospace; }
+  th { text-align: left; padding: 0.4rem 0.6rem; background: #1a1a1a; color: #6ea8fe; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1; }
+  td { padding: 0.35rem 0.6rem; border-bottom: 1px solid #1a1a1a; color: #bbb; }
+  tr:hover td { background: #141414; }
+
+  /* Query results tab */
+  .query-section { margin-bottom: 2rem; }
+  .query-section h3 {
+    font-size: 0.85rem; color: #6ea8fe; margin-bottom: 0.5rem;
+    font-family: monospace; font-weight: 500;
+  }
+  .query-section .cat-label {
+    font-size: 0.7rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+  }
+  .query-error { color: #d9534f; font-size: 0.8rem; font-family: monospace; padding: 0.5rem; background: #1a1010; border-radius: 6px; }
+  .query-loading { color: #888; font-size: 0.9rem; padding: 2rem; text-align: center; }
+  .query-empty { color: #555; font-size: 0.85rem; padding: 1rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1><span>&Oslash;</span>rthon</h1>
+  <div class="file-info" id="fileinfo">Loading...</div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="compute">Compute</div>
+    <div class="tab" data-tab="results">Results</div>
+  </div>
+
+  <!-- COMPUTE TAB -->
+  <div class="tab-content active" id="tab-compute">
+    <h2>Compute Stages</h2>
+    <div class="stages" id="stages"></div>
+    <div class="actions">
+      <button class="btn-all" onclick="selectAll()">Select All</button>
+      <button class="btn-run" id="runbtn" onclick="runSelected()">Run Selected</button>
+    </div>
+    <details open>
+      <summary><h2 style="display:inline">Log</h2></summary>
+      <div class="log" id="log">Waiting...</div>
+    </details>
+    <div id="results-panel" style="margin-top:2rem; display:none;">
+      <h2>Output Files</h2>
+      <div class="summary-cards" id="summary"></div>
+      <div class="output-files" id="output-files"></div>
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div class="tab-content" id="tab-results">
+    <div id="query-results">
+      <div class="query-loading">Run compute stages first, then view results here.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const JOB_ID = "{job_id}";
+
+  // ── Tab switching ──
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Stages ──
+  const STAGES = [
+    { id: "ingest",     name: "Ingest",     desc: "Parse raw data into observations.parquet", default: true },
+    { id: "typology",   name: "Typology",   desc: "Classify signal mathematical structure", default: true },
+    { id: "compute",    name: "Signal Vector", desc: "Windowed feature extraction per signal", default: true },
+    { id: "ftle",       name: "FTLE",       desc: "Lyapunov exponents — attractor stability", default: false },
+    { id: "condition-manifold", name: "Condition Manifold", desc: "Multi-regime departure analysis", default: false },
+    { id: "ml-export",  name: "ML Export",  desc: "Assemble canonical feature matrix", default: false },
+    { id: "modality",   name: "Modality",   desc: "Per-modality geometry", default: false },
+    { id: "geodesic",   name: "Geodesic",   desc: "SVD manifold surfaces + departure", default: false },
+    { id: "topology",   name: "Topology",   desc: "Persistent homology", default: false },
+    { id: "sigma",      name: "Sigma",      desc: "Threshold-based departure profiling", default: false },
+    { id: "assembly",   name: "Assembly",   desc: "Join all into per_cycle + per_window parquets", default: false },
+  ];
+
+  const stagesEl = document.getElementById('stages');
+  const logEl = document.getElementById('log');
+  const runBtn = document.getElementById('runbtn');
+
+  STAGES.forEach(s => {
+    const div = document.createElement('div');
+    div.className = s.default ? 'stage selected' : 'stage';
+    div.dataset.id = s.id;
+    div.innerHTML = `
+      <input type="checkbox" ${s.default ? 'checked' : ''} data-stage="${s.id}">
+      <div>
+        <div class="stage-name">${s.name}</div>
+        <div class="stage-desc">${s.desc}</div>
+      </div>
+      <div class="stage-status">pending</div>
+    `;
+    div.addEventListener('click', e => {
+      if (e.target.tagName === 'INPUT') return;
+      const cb = div.querySelector('input');
+      cb.checked = !cb.checked;
+      div.classList.toggle('selected', cb.checked);
+    });
+    div.querySelector('input').addEventListener('change', e => {
+      div.classList.toggle('selected', e.target.checked);
+    });
+    stagesEl.appendChild(div);
+  });
+
+  fetch(`/status/${JOB_ID}`).then(r => r.json()).then(data => {
+    document.getElementById('fileinfo').textContent = `${data.filename} — ${data.status}`;
+  });
+
+  function selectAll() {
+    const boxes = stagesEl.querySelectorAll('input[type="checkbox"]');
+    const allChecked = [...boxes].every(b => b.checked);
+    boxes.forEach(b => { b.checked = !allChecked; b.closest('.stage').classList.toggle('selected', b.checked); });
+  }
+
+  async function runSelected() {
+    const selected = [...stagesEl.querySelectorAll('input:checked')].map(b => b.dataset.stage);
+    if (!selected.length) return;
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    logEl.textContent = '';
+    const res = await fetch(`/compute/${JOB_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stages: selected }),
+    });
+    if (!res.ok) {
+      logEl.textContent = 'Error: ' + (await res.text());
+      runBtn.disabled = false;
+      runBtn.textContent = 'Run Selected';
+      return;
+    }
+    pollProgress();
+  }
+
+  async function pollProgress() {
+    const res = await fetch(`/status/${JOB_ID}`);
+    const data = await res.json();
+    if (data.stage_status) {
+      Object.entries(data.stage_status).forEach(([id, status]) => {
+        const el = stagesEl.querySelector(`[data-id="${id}"]`);
+        if (!el) return;
+        el.className = 'stage ' + status;
+        el.querySelector('.stage-status').textContent = status;
+      });
+    }
+    if (data.log) logEl.textContent = data.log;
+    if (data.status === 'running') {
+      setTimeout(pollProgress, 2000);
+    } else {
+      runBtn.disabled = false;
+      runBtn.textContent = 'Run Selected';
+      if (data.status === 'done') {
+        logEl.textContent += '\n\nComplete.';
+        loadOutputFiles();
+        loadQueryResults();
+      }
+    }
+  }
+
+  // ── Output files (Compute tab) ──
+  async function loadOutputFiles() {
+    const res = await fetch(`/results_data/${JOB_ID}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const panel = document.getElementById('results-panel');
+    panel.style.display = 'block';
+
+    const summary = document.getElementById('summary');
+    summary.innerHTML = '';
+    if (data.summary) {
+      Object.entries(data.summary).forEach(([label, value]) => {
+        summary.innerHTML += `<div class="card"><div class="value">${value}</div><div class="label">${label}</div></div>`;
+      });
+    }
+
+    const filesEl = document.getElementById('output-files');
+    filesEl.innerHTML = '';
+    if (data.files && data.files.length) {
+      data.files.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'output-file';
+        div.innerHTML = `<span class="name">${f.name}</span><span class="meta">${f.rows} rows &times; ${f.cols} cols — ${f.size}</span>`;
+        div.addEventListener('click', () => loadPreview(f.name, div));
+        filesEl.appendChild(div);
+      });
+      filesEl.querySelector('.output-file').click();
+    }
+  }
+
+  async function loadPreview(filename, el) {
+    document.querySelectorAll('.output-file').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    const res = await fetch(`/preview/${JOB_ID}/${encodeURIComponent(filename)}`);
+    if (!res.ok) { document.getElementById('preview').innerHTML = '<p style="color:#555">Cannot preview.</p>'; return; }
+    const data = await res.json();
+    document.getElementById('preview').innerHTML = renderTable(data.columns, data.rows);
+  }
+
+  // ── Query results (Results tab) ──
+  async function loadQueryResults() {
+    const container = document.getElementById('query-results');
+    container.innerHTML = '<div class="query-loading">Loading query results...</div>';
+
+    const res = await fetch(`/query_all/${JOB_ID}`);
+    if (!res.ok) { container.innerHTML = '<div class="query-error">Failed to load results.</div>'; return; }
+    const data = await res.json();
+
+    if (!data.tables || !data.tables.length) {
+      container.innerHTML = '<div class="query-empty">No query results available. Some stages may need to run first.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    let currentCat = '';
+    data.tables.forEach(t => {
+      const section = document.createElement('div');
+      section.className = 'query-section';
+
+      let catHtml = '';
+      if (t.category !== currentCat) {
+        currentCat = t.category;
+        catHtml = `<div class="cat-label">${t.category}</div>`;
+      }
+
+      if (t.error) {
+        section.innerHTML = `${catHtml}<h3>${t.name}</h3><div class="query-error">${t.error}</div>`;
+      } else if (!t.rows.length) {
+        section.innerHTML = `${catHtml}<h3>${t.name}</h3><div class="query-empty">No rows returned.</div>`;
+      } else {
+        const rowLabel = t.total_rows > 100 ? ` (showing 100 of ${t.total_rows})` : '';
+        section.innerHTML = `${catHtml}<h3>${t.name}${rowLabel}</h3>` + renderTable(t.columns, t.rows);
+      }
+      container.appendChild(section);
+    });
+
+    // Flash the Results tab
+    document.querySelector('[data-tab="results"]').style.color = '#5cb85c';
+    setTimeout(() => document.querySelector('[data-tab="results"]').style.color = '', 2000);
+  }
+
+  // ── Shared table renderer ──
+  function renderTable(columns, rows) {
+    let html = '<div class="tbl-wrap"><table><thead><tr>';
+    columns.forEach(c => html += `<th>${c}</th>`);
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+      html += '<tr>';
+      columns.forEach(c => {
+        let v = row[c];
+        if (typeof v === 'number') v = Number.isInteger(v) ? v : v.toFixed(4);
+        html += `<td>${v ?? ''}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+</script>
+</body>
+</html>
